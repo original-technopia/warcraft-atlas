@@ -1,0 +1,3 @@
+# Keep the site files byte-identical to what tools/build.py writes and the server serves.
+* text=auto eol=lf
+*.png binary
