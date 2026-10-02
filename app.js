@@ -258,16 +258,19 @@
     const c = byId.get(id);
     return `<button type="button" class="cchip al-${c.a}" data-char="${c.id}">${esc(shortName(c))}</button>`;
   }
-  function renderChar(id) {
-    const d = byId.get(id);
-    const mine = adj.get(id);
-    const rows = Object.keys(REL).flatMap(type => mine.filter(l => l.type === type).map(l => {
+  function relRows(id) {
+    return Object.keys(REL).flatMap(type => adj.get(id).filter(l => l.type === type).map(l => {
       const out = l.source.id === id, other = out ? l.target : l.source, r = REL[type];
       const label = r.dir ? (out ? r.out : r.in) : r.l;
       return `<li><span class="sw line ${r.st || ''} t-${type}" aria-hidden="true"></span>
         <div><span class="rt">${label}</span> <button type="button" class="linkbtn" data-char="${other.id}">${esc(other.n)}</button>
         <div class="why">${esc(l.d)}</div></div></li>`;
     })).join('');
+  }
+  function renderChar(id) {
+    const d = byId.get(id);
+    const mine = adj.get(id);
+    const rows = relRows(id);
     const evs = evByChar.get(id) || [];
     panel.innerHTML = `
       <span class="badge al-${d.a}">${ALIGN[d.a]}</span>
@@ -275,6 +278,7 @@
       <div class="sub">${esc(d.r)} \u00b7 ${esc(d.t)}</div>
       <div class="meta"><span>${esc(d.s)}</span><span>${esc(GROUPS[d.g].l)}</span></div>
       <p>${esc(d.b)}</p>
+      ${bioButton(id)}
       ${readMore(WIKI.chars[id] ? [['Warcraft Wiki', WIKI.chars[id]]] : [])}
       ${essays(READING.chars[id])}
       <h3>Ties \u00b7 ${mine.length}</h3>
@@ -294,10 +298,72 @@
     if (b.dataset.char) goToChar(b.dataset.char);
     else if (b.dataset.ev) goToEvent(b.dataset.ev);
     else if (b.dataset.clear) select(null);
+    else if (b.dataset.bio) openBio(b.dataset.bio);
+  });
+
+  // ---------- Full biographies ----------
+  const bioView = document.getElementById('bioView');
+  const webParts = [document.querySelector('#view-web .toolbar'), document.querySelector('#view-web .stage')];
+  let bioScroll = 0;
+  const wordsIn = st => st.reduce((n, [, ps]) => n + ps.join(' ').split(/\s+/).length, 0);
+  const hasBio = id => !!(window.CHAR_BIOS || {})[id];
+  function bioButton(id) {
+    const st = (window.CHAR_BIOS || {})[id];
+    if (!st) return '';
+    return `<p><button type="button" class="storybtn" data-bio="${id}"><span class="chev" aria-hidden="true"></span>` +
+      `<span class="tl">Read full biography</span><span class="mins">${Math.max(1, Math.round(wordsIn(st) / 230))} min</span></button></p>`;
+  }
+  const orgsOf = id => (window.ORGS || []).filter(o => o.leaders.includes(id) || o.members.includes(id));
+  function openBio(id) {
+    const d = byId.get(id), st = (window.CHAR_BIOS || {})[id];
+    if (!d || !st) return;
+    showView('web');
+    if (bioView.hidden) bioScroll = window.scrollY;
+    const mine = adj.get(id), evs = evByChar.get(id) || [], orgs = orgsOf(id);
+    const back = '<p><button type="button" class="btn" data-back="1">&larr; Back to the map</button></p>';
+    bioView.innerHTML = `${back}
+      <article class="racebody bio al-${d.a}">
+        <div class="rhead"><span class="badge al-${d.a}">${ALIGN[d.a]}</span><h2>${esc(d.n)}</h2><div class="sub">${esc(d.t)}</div></div>
+        <dl class="facts">${[['Race', d.r], ['Status', d.s], ['Belongs to', GROUPS[d.g].l]].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+        <p class="rsum">${esc(d.b)}</p>
+        <p class="readtime">Full biography below &middot; about ${Math.max(1, Math.round(wordsIn(st) / 230))} minute read</p>
+        <div class="rmain">
+          <article class="story">${st.map(([h, ps]) => `<section><h3>${esc(h)}</h3>${ps.map(p => `<p>${esc(p)}</p>`).join('')}</section>`).join('')}</article>
+          <aside class="raside">
+            ${evs.length ? `<h3>In the timeline</h3><ol class="rhist">${evs.map(ev =>
+              `<li><span class="yr">${esc(ev.y)}</span><span><button type="button" class="linkbtn" data-ev="${ev.id}">${esc(ev.t)}</button></span></li>`).join('')}</ol>` : ''}
+            ${orgs.length ? `<h3>Factions</h3><ul class="kin">${orgs.map(o =>
+              `<li><button type="button" class="linkbtn" data-org="${o.id}">${esc(o.n)}</button> <span class="why">${o.leaders.includes(id) ? 'Leader' : 'Member'}</span></li>`).join('')}</ul>` : ''}
+            <h3>Ties &middot; ${mine.length}</h3>
+            <ul class="rels">${relRows(id)}</ul>
+            <h3>Further reading</h3>
+            ${readMore(WIKI.chars[id] ? [['Warcraft Wiki', WIKI.chars[id]]] : [])}
+            ${essays(READING.chars[id])}
+          </aside>
+        </div>
+      </article>${back}`;
+    webParts.forEach(el => { el.hidden = true; });
+    bioView.hidden = false;
+    hideTip();
+    bioView.scrollIntoView({ block: 'start' });
+  }
+  function closeBio(restore) {
+    if (bioView.hidden) return;
+    bioView.hidden = true;
+    webParts.forEach(el => { el.hidden = false; });
+    if (restore) window.scrollTo(0, bioScroll);
+  }
+  bioView.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.back) closeBio(true);
+    else if (b.dataset.char) { if (hasBio(b.dataset.char)) openBio(b.dataset.char); else goToChar(b.dataset.char); }
+    else if (b.dataset.ev) goToEvent(b.dataset.ev);
+    else if (b.dataset.org && typeof openOrg === 'function') openOrg(b.dataset.org);
   });
 
   function goToChar(id) {
     const d = byId.get(id); if (!d) return;
+    closeBio(false);
     showView('web');
     if (!alignOn.has(d.a)) { alignOn.add(d.a); syncChips(); applyFilters(); }
     select(id);
@@ -330,27 +396,10 @@
     syncChips(); applyFilters();
   });
 
-  const q = document.getElementById('q');
-  document.getElementById('names').innerHTML = nodes.slice().sort((a, b) => a.n.localeCompare(b.n))
-    .map(n => `<option value="${esc(n.n)}"></option>`).join('');
   const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f'\u2019]/g, '');
-  function matches() {
-    const v = norm(q.value.trim());
-    return v.length < 2 ? [] : nodes.filter(n => norm(n.n).includes(v) || norm(n.t).includes(v));
-  }
-  q.addEventListener('input', () => {
-    const m = new Set(matches().map(n => n.id));
-    nodeSel.classed('match', d => m.has(d.id));
-    const exact = nodes.find(n => n.n === q.value);
-    if (exact) goToChar(exact.id);
-  });
-  q.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    const m = matches(); if (m.length) goToChar(m[0].id);
-  });
   document.getElementById('resetBtn').onclick = () => {
     Object.keys(ALIGN).forEach(a => alignOn.add(a)); Object.keys(REL).forEach(t => relOn.add(t));
-    q.value = ''; nodeSel.classed('match', false);
+    nodeSel.classed('match', false);
     syncChips(); applyFilters(); select(null); fit(500);
   };
 
@@ -550,11 +599,166 @@
     const g = e.target.closest('g[data-race]');
     if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRace(g.dataset.race); }
   });
-  setRaceMode('tree');
+  setRaceMode('profiles');
+
+  // ---------- Factions ----------
+  const ORGS = window.ORGS || [];
+  const orgById = new Map(ORGS.map(o => [o.id, o]));
+  const orgNav = document.getElementById('orgNav');
+  const orgSel = document.getElementById('orgSelect');
+  const orgBody = document.getElementById('orgBody');
+  const ORG_GROUPS = { hero: 'Orders and defenders', grey: 'Uneasy allies', villain: 'Cults and conspiracies' };
+  const orgName = id => (orgById.get(id) || {}).n || id;
+  if (ORGS.length) {
+    orgNav.innerHTML = Object.entries(ORG_GROUPS).map(([a, label]) => {
+      const list = ORGS.filter(o => o.align === a);
+      return list.length ? `<div class="rgroup al-${a}"><h3>${label}<span>${list.length}</span></h3><ul>${list.map(o =>
+        `<li><button type="button" class="rbtn" data-org="${o.id}">${esc(o.n)}</button></li>`).join('')}</ul></div>` : '';
+    }).join('');
+    orgSel.innerHTML = Object.entries(ORG_GROUPS).map(([a, label]) => {
+      const list = ORGS.filter(o => o.align === a);
+      return list.length ? `<optgroup label="${label}">${list.map(o => `<option value="${o.id}">${esc(o.n)}</option>`).join('')}</optgroup>` : '';
+    }).join('');
+  } else {
+    orgBody.innerHTML = '<p class="rsum">Factions are being written.</p>';
+  }
+  function renderOrg(id) {
+    const o = orgById.get(id); if (!o) return;
+    orgNav.querySelectorAll('.rbtn').forEach(b => b.setAttribute('aria-current', b.dataset.org === id ? 'true' : 'false'));
+    orgSel.value = id;
+    const facts = [['Founded', o.founded], ['Based in', o.base], ['Status', o.status]].filter(x => x[1]);
+    const lead = o.leaders.filter(c => byId.has(c)), mem = o.members.filter(c => byId.has(c) && !o.leaders.includes(c));
+    const races = (o.races || []).map(r => raceById.get(r)).filter(Boolean);
+    const evs = (o.events || []).map(e => ERAS.flatMap(x => x.events).find(ev => ev.id === e)).filter(Boolean);
+    const words = wordsIn(o.story || []);
+    orgBody.className = 'racebody org al-' + o.align;
+    orgBody.innerHTML = `
+      <div class="rhead"><span class="badge al-${o.align}">${esc(o.kind)}</span><h2>${esc(o.n)}</h2></div>
+      <dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+      <p class="rsum">${esc(o.s)}</p>
+      ${races.length > 1 ? `<div class="xrace"><span class="more-label">Crosses races</span>${races.map(r =>
+        `<button type="button" class="lone f-${r.f}" data-race="${r.id}">${esc(r.n)}</button>`).join('')}</div>` : ''}
+      <p class="readtime">About ${Math.max(1, Math.round(words / 230))} minute read</p>
+      <div class="rmain">
+        <article class="story">${(o.story || []).map(([h, ps]) => `<section><h3>${esc(h)}</h3>${ps.map(p => `<p>${esc(p)}</p>`).join('')}</section>`).join('')}</article>
+        <aside class="raside">
+          ${lead.length ? `<h3>Led by</h3><div class="cchips">${lead.map(chipFor).join('')}</div>` : ''}
+          ${mem.length || (o.other || []).length ? `<h3>Notable members</h3>
+            ${mem.length ? `<div class="cchips">${mem.map(chipFor).join('')}</div>` : ''}
+            ${(o.other || []).length ? `<p class="also">${mem.length ? 'Also: ' : ''}${o.other.map(esc).join(' &middot; ')}</p>` : ''}` : ''}
+          ${races.length === 1 ? `<h3>Race</h3><div class="lonerow">${races.map(r =>
+            `<button type="button" class="lone f-${r.f}" data-race="${r.id}">${esc(r.n)}</button>`).join('')}</div>` : ''}
+          ${evs.length ? `<h3>In the timeline</h3><ol class="rhist">${evs.map(ev =>
+            `<li><span class="yr">${esc(ev.y)}</span><span><button type="button" class="linkbtn" data-ev="${ev.id}">${esc(ev.t)}</button></span></li>`).join('')}</ol>` : ''}
+          ${(o.related || []).filter(r => orgById.has(r)).length ? `<h3>Related factions</h3><ul class="kin">${o.related.filter(r => orgById.has(r)).map(r =>
+            `<li><button type="button" class="linkbtn" data-org="${r}">${esc(orgName(r))}</button></li>`).join('')}</ul>` : ''}
+          <h3>Further reading</h3>
+          ${readMore(o.wiki ? [['Warcraft Wiki', o.wiki]] : [])}
+        </aside>
+      </div>`;
+  }
+  function openOrg(id) {
+    showView('orgs'); renderOrg(id);
+    document.getElementById('view-orgs').scrollIntoView({ block: 'start' });
+  }
+  orgNav.addEventListener('click', e => { const b = e.target.closest('[data-org]'); if (b) renderOrg(b.dataset.org); });
+  orgSel.addEventListener('change', () => renderOrg(orgSel.value));
+  orgBody.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.char) { if (hasBio(b.dataset.char)) openBio(b.dataset.char); else goToChar(b.dataset.char); }
+    else if (b.dataset.race) { showView('races'); openRace(b.dataset.race); }
+    else if (b.dataset.ev) goToEvent(b.dataset.ev);
+    else if (b.dataset.org) { renderOrg(b.dataset.org); if (orgBody.getBoundingClientRect().top < 0) orgBody.scrollIntoView({ block: 'start' }); }
+  });
+  if (ORGS.length) renderOrg(ORGS[0].id);
+
+  // ---------- Cosmology ----------
+  const COS = window.COSMOS;
+  const cosmosBody = document.getElementById('cosmosBody');
+  const forceById = new Map(((COS || {}).forces || []).map(f => [f.id, f]));
+  // Positions follow the Warcraft Chronicle chart: Light top, Void bottom, Life and Disorder above, Order and Death below.
+  const CPOS = { top: [320, 78], 'upper-left': [96, 200], 'upper-right': [544, 200], 'lower-left': [96, 440], 'lower-right': [544, 440],
+    bottom: [320, 562], left: [70, 320], right: [570, 320] };
+  const ELEMENTS = ['Spirit', 'Fire', 'Air', 'Decay', 'Earth', 'Water'];
+  function cosmosSVG() {
+    const fs = COS.forces, pt = f => CPOS[f.place] || [320, 320];
+    const seen = new Set();
+    const lines = fs.filter(f => { const k = [f.id, f.pair].sort().join(); if (seen.has(k) || !forceById.has(f.pair)) return false; seen.add(k); return true; })
+      .map(f => { const [x1, y1] = pt(f), [x2, y2] = pt(forceById.get(f.pair)); return `<line class="cpair" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`; }).join('');
+    const ring = ELEMENTS.map((e, i) => {
+      const a = -Math.PI / 3 + i * Math.PI / 3, x = 320 + Math.cos(a) * 150, y = 320 + Math.sin(a) * 150 + 4;
+      return `<text class="celem" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${e}</text>`;
+    }).join('');
+    const nodes = fs.map(f => {
+      const [x, y] = pt(f);
+      return `<g class="cnode" data-force="${f.id}" style="--k:var(--k-${f.id})" tabindex="0" role="button" aria-label="${esc(f.n)}" transform="translate(${x},${y})">
+        <circle r="62"/><text class="cn" y="-2">${esc(f.n.replace(/^The /, ''))}</text><text class="ca" y="20">${esc(f.alt || '')}</text></g>`;
+    }).join('');
+    return `<svg class="cosmos" viewBox="0 0 640 640" role="img" aria-label="The six forces of the Warcraft cosmos and how they oppose one another">
+      ${lines}
+      <circle class="cring" cx="320" cy="320" r="150"/>
+      <circle class="crealm dream" cx="279" cy="279" r="46"/><circle class="crealm shadow" cx="361" cy="361" r="46"/>
+      <circle class="creal" cx="320" cy="320" r="58"/>
+      <text class="crl" x="320" y="316">Reality</text><text class="crs" x="320" y="336">the physical worlds</text>
+      <text class="crn" x="256" y="253">Emerald</text><text class="crn" x="256" y="266">Dream</text>
+      <text class="crn" x="384" y="381">Shadow-</text><text class="crn" x="384" y="394">lands</text>
+      ${ring}${nodes}</svg>`;
+  }
+  function renderForce(id) {
+    const f = forceById.get(id); if (!f) return;
+    cosmosBody.querySelectorAll('.cnode').forEach(g => g.classList.toggle('on', g.dataset.force === id));
+    const opp = forceById.get(f.pair);
+    const evs = (f.events || []).map(e => ERAS.flatMap(x => x.events).find(ev => ev.id === e)).filter(Boolean);
+    const races = (f.races || []).map(r => raceById.get(r)).filter(Boolean);
+    const box = document.getElementById('forceBody');
+    box.style.setProperty('--fc', `var(--k-${f.id})`);
+    box.innerHTML = `
+      <div class="rhead"><span class="fbadge" style="--fc:var(--k-${f.id})">Cosmic force</span><h2>${esc(f.n)}</h2>${f.alt ? `<div class="sub">${esc(f.alt)}</div>` : ''}</div>
+      <dl class="facts">
+        ${opp ? `<div><dt>Opposes</dt><dd><button type="button" class="linkbtn" data-force="${opp.id}">${esc(opp.n)}</button></dd></div>` : ''}
+        ${f.realm ? `<div><dt>Realm</dt><dd>${esc(f.realm)}</dd></div>` : ''}
+      </dl>
+      <p class="rsum">${esc(f.s)}</p>
+      <div class="story">${(f.text || []).map(p => `<p>${esc(p)}</p>`).join('')}</div>
+      ${(f.beings || []).length ? `<h3>Powers and beings</h3><p class="also">${f.beings.map(esc).join(' &middot; ')}</p>` : ''}
+      ${(f.chars || []).filter(c => byId.has(c)).length ? `<h3>Key figures</h3><div class="cchips">${f.chars.filter(c => byId.has(c)).map(chipFor).join('')}</div>` : ''}
+      ${races.length ? `<h3>Races touched by it</h3><div class="lonerow">${races.map(r => `<button type="button" class="lone f-${r.f}" data-race="${r.id}">${esc(r.n)}</button>`).join('')}</div>` : ''}
+      ${evs.length ? `<h3>In the timeline</h3><ol class="rhist">${evs.map(ev =>
+        `<li><span class="yr">${esc(ev.y)}</span><span><button type="button" class="linkbtn" data-ev="${ev.id}">${esc(ev.t)}</button></span></li>`).join('')}</ol>` : ''}
+      <h3>Further reading</h3>${readMore(f.wiki ? [['Warcraft Wiki', f.wiki]] : [])}`;
+  }
+  function openForce(id) {
+    showView('cosmos'); renderForce(id);
+    document.getElementById('forceBody').scrollIntoView({ block: 'start' });
+  }
+  if (COS && COS.forces) {
+    cosmosBody.innerHTML = `
+      <div class="cos-intro"><h2>The six forces</h2>${COS.intro.map(p => `<p>${esc(p)}</p>`).join('')}</div>
+      <div class="cos-grid">
+        <figure class="cos-chart">${cosmosSVG()}
+          <figcaption><span class="more-label">About this chart</span> ${esc(COS.chart)}</figcaption></figure>
+        <article class="racebody cforce" id="forceBody" aria-live="polite"></article>
+      </div>
+      <article class="story cos-sections">${COS.sections.map(([h, ps]) => `<section><h3>${esc(h)}</h3>${ps.map(p => `<p>${esc(p)}</p>`).join('')}</section>`).join('')}</article>`;
+    renderForce(COS.forces[0].id);
+    cosmosBody.addEventListener('click', e => {
+      const t = e.target.closest('[data-force],button'); if (!t) return;
+      if (t.dataset.force) { renderForce(t.dataset.force); if (t.closest('#forceBody')) document.getElementById('forceBody').scrollIntoView({ block: 'nearest' }); }
+      else if (t.dataset.char) { if (hasBio(t.dataset.char)) openBio(t.dataset.char); else goToChar(t.dataset.char); }
+      else if (t.dataset.race) { showView('races'); openRace(t.dataset.race); }
+      else if (t.dataset.ev) goToEvent(t.dataset.ev);
+    });
+    cosmosBody.addEventListener('keydown', e => {
+      const g = e.target.closest('g[data-force]');
+      if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); renderForce(g.dataset.force); }
+    });
+  }
 
   // ---------- Views ----------
-  const tabs = { web: document.getElementById('tab-web'), time: document.getElementById('tab-time'), races: document.getElementById('tab-races') };
-  const views = { web: document.getElementById('view-web'), time: document.getElementById('view-time'), races: document.getElementById('view-races') };
+  const tabs = { web: document.getElementById('tab-web'), time: document.getElementById('tab-time'), races: document.getElementById('tab-races'),
+    orgs: document.getElementById('tab-orgs'), cosmos: document.getElementById('tab-cosmos') };
+  const views = { web: document.getElementById('view-web'), time: document.getElementById('view-time'), races: document.getElementById('view-races'),
+    orgs: document.getElementById('view-orgs'), cosmos: document.getElementById('view-cosmos') };
   let fitted = false;
   function showView(v) {
     Object.keys(views).forEach(k => { views[k].hidden = k !== v; tabs[k].setAttribute('aria-selected', k === v); });
@@ -564,13 +768,122 @@
   tabs.web.onclick = () => showView('web');
   tabs.time.onclick = () => showView('time');
   tabs.races.onclick = () => showView('races');
+  tabs.orgs.onclick = () => showView('orgs');
+  tabs.cosmos.onclick = () => showView('cosmos');
+
+  // ---------- Search everything ----------
+  const gq = document.getElementById('gq');
+  const gres = document.getElementById('gres');
+  const GTYPES = [['char', 'Characters'], ['event', 'Timeline'], ['race', 'Races'], ['org', 'Factions'], ['force', 'Cosmology']];
+  let gIndex = null, searchHits = [], gCur = -1;
+  const flatStory = st => st ? st.map(([h, ps]) => h + '. ' + ps.join(' ')).join(' ') : '';
+  function buildIndex() {
+    const out = [];
+    nodes.forEach(c => out.push({ type: 'char', id: c.id, label: c.n, sub: c.t, a: c.a,
+      body: [c.r, c.b, flatStory((window.CHAR_BIOS || {})[c.id])].join(' ') }));
+    ERAS.forEach(era => era.events.forEach(ev => out.push({ type: 'event', id: ev.id, label: ev.t, sub: ev.y + ' \u00b7 ' + era.name,
+      body: [ev.d, ((window.EVENT_STORIES || {})[ev.id] || []).join(' ')].join(' ') })));
+    RACES.forEach(r => out.push({ type: 'race', id: r.id, label: r.n, sub: [r.nn, r.tag].filter(Boolean).join(' \u00b7 '),
+      body: [r.s, r.home, r.cap, r.lead, r.h.map(x => x[1]).join(' '), flatStory((window.RACE_STORIES || {})[r.id])].join(' ') }));
+    (window.ORGS || []).forEach(o => out.push({ type: 'org', id: o.id, label: o.n, sub: o.kind, body: [o.s, flatStory(o.story)].join(' ') }));
+    ((window.COSMOS || {}).forces || []).forEach(f => out.push({ type: 'force', id: f.id, label: f.n, sub: f.alt || '',
+      body: [f.s, (f.text || []).join(' ')].join(' ') }));
+    out.forEach(x => { x.nl = norm(x.label); x.ns = norm(x.sub || ''); x.nb = norm(x.body); x.lb = x.body.toLowerCase(); });
+    return out;
+  }
+  function runSearch(qs) {
+    const v = norm(qs.trim());
+    if (v.length < 2) return [];
+    gIndex = gIndex || buildIndex();
+    const res = [];
+    for (const x of gIndex) {
+      let score, inBody = false;
+      if (x.nl.startsWith(v) || x.nl.includes(' ' + v)) score = 100;
+      else if (x.nl.includes(v)) score = 70;
+      else if (x.ns.includes(v)) score = 40;
+      else {
+        let p = x.nb.indexOf(v), n = 0;
+        const whole = v.length <= 3;
+        while (p >= 0 && n < 30) {
+          const startOk = p === 0 || !/[a-z0-9]/.test(x.nb[p - 1]), endOk = !whole || !/[a-z0-9]/.test(x.nb[p + v.length] || '');
+          if (startOk && endOk) n++;
+          p = x.nb.indexOf(v, p + 1);
+        }
+        if (!n) continue;
+        score = 10 + n; inBody = true;
+      }
+      res.push({ x, score, inBody });
+    }
+    return res.sort((a, b) => b.score - a.score || a.x.label.localeCompare(b.x.label));
+  }
+  function snippet(x, qs) {
+    const q = qs.trim().toLowerCase();
+    let i = x.lb.indexOf(q);
+    while (i > 0 && /[a-z0-9]/.test(x.lb[i - 1])) i = x.lb.indexOf(q, i + 1);
+    if (i < 0) return '';
+    const s = Math.max(0, x.body.lastIndexOf(' ', Math.max(0, i - 70)) + 1);
+    const e = Math.min(x.body.length, i + q.length + 90);
+    return (s > 0 ? '\u2026' : '') + esc(x.body.slice(s, i)) + '<mark>' + esc(x.body.slice(i, i + q.length)) + '</mark>' +
+      esc(x.body.slice(i + q.length, e)) + (e < x.body.length ? '\u2026' : '');
+  }
+  function closeResults() { gres.hidden = true; gq.setAttribute('aria-expanded', 'false'); gq.removeAttribute('aria-activedescendant'); gCur = -1; }
+  function renderResults() {
+    const qs = gq.value, all = runSearch(qs);
+    const nameHits = new Set(all.filter(r => r.x.type === 'char' && !r.inBody).map(r => r.x.id));
+    nodeSel.classed('match', d => nameHits.has(d.id));
+    if (qs.trim().length < 2) { closeResults(); return; }
+    searchHits = [];
+    let html = '';
+    for (const [t, label] of GTYPES) {
+      const group = all.filter(r => r.x.type === t);
+      if (!group.length) continue;
+      html += `<div class="ghead">${label}<span>${group.length}</span></div>`;
+      group.slice(0, 6).forEach(r => {
+        const k = searchHits.length; searchHits.push(r.x);
+        const sn = r.inBody ? snippet(r.x, qs) : '';
+        html += `<button type="button" class="ghit" role="option" id="gh-${k}" data-k="${k}">` +
+          `<span class="gl">${r.x.type === 'char' ? `<i class="dot al-${r.x.a}"></i>` : ''}${esc(r.x.label)}</span>` +
+          (r.x.sub ? `<span class="gs">${esc(r.x.sub)}</span>` : '') + (sn ? `<span class="gsn">${sn}</span>` : '') + '</button>';
+      });
+      if (group.length > 6) html += `<div class="gmore">${group.length - 6} more ${label.toLowerCase()} mention this. Try a longer search to narrow it down.</div>`;
+    }
+    gres.innerHTML = html || `<div class="gempty">Nothing in the atlas matches \u201c${esc(qs.trim())}\u201d.</div>`;
+    gres.hidden = false; gq.setAttribute('aria-expanded', 'true'); gCur = -1;
+  }
+  function setActive(k) {
+    const btns = gres.querySelectorAll('.ghit');
+    if (!btns.length) return;
+    gCur = (k + btns.length) % btns.length;
+    btns.forEach((b, i) => b.classList.toggle('active', i === gCur));
+    btns[gCur].scrollIntoView({ block: 'nearest' });
+    gq.setAttribute('aria-activedescendant', btns[gCur].id);
+  }
+  function openHit(x) {
+    closeResults(); gq.blur();
+    if (x.type === 'char') goToChar(x.id);
+    else if (x.type === 'event') goToEvent(x.id);
+    else if (x.type === 'race') { showView('races'); openRace(x.id); }
+    else if (x.type === 'org' && typeof openOrg === 'function') openOrg(x.id);
+    else if (x.type === 'force' && typeof openForce === 'function') openForce(x.id);
+  }
+  gq.addEventListener('input', renderResults);
+  gq.addEventListener('focus', () => { if (gq.value.trim().length >= 2) renderResults(); });
+  gq.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (gres.hidden) renderResults(); setActive(gCur + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(gCur - 1); }
+    else if (e.key === 'Enter') { e.preventDefault(); const x = searchHits[gCur >= 0 ? gCur : 0]; if (x && !gres.hidden) openHit(x); }
+    else if (e.key === 'Escape') { closeResults(); }
+  });
+  gres.addEventListener('mousedown', e => e.preventDefault());
+  gres.addEventListener('click', e => { const b = e.target.closest('.ghit'); if (b) openHit(searchHits[+b.dataset.k]); });
+  document.addEventListener('click', e => { if (!e.target.closest('.gsearch')) closeResults(); });
 
   renderIntro();
   applyFilters();
-  showView({ '#timeline': 'time', '#races': 'races' }[location.hash] || 'web');
+  showView({ '#timeline': 'time', '#races': 'races', '#factions': 'orgs', '#cosmology': 'cosmos' }[location.hash] || 'web');
   let lastW = graphEl.clientWidth;
   window.addEventListener('resize', () => {
-    if (views.web.hidden || graphEl.clientWidth === lastW) return;
+    if (views.web.hidden || !graphEl.clientWidth || graphEl.clientWidth === lastW) return;
     lastW = graphEl.clientWidth; fit(0);
   });
 })();

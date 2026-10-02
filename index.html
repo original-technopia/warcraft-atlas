@@ -51,6 +51,12 @@
   --f-horde: #e3564c;
   --f-both: #d8ad55;
   --f-other: #a98be0;
+  --k-light: #f3d27a;
+  --k-void: #9a6cf0;
+  --k-order: #5fb2ff;
+  --k-disorder: #a6e04a;
+  --k-life: #4cc27a;
+  --k-death: #9fc4d6;
   --font-display: "Marcellus SC", "Trajan Pro", Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
@@ -63,6 +69,7 @@
     --r-family: #3d8c37; --r-romance: #c73e79; --r-mentor: #2c77cc; --r-ally: #7b869a;
     --r-rival: #c26810; --r-slew: #d02c2c; --r-corrupt: #7a48d0; --r-serves: #97772b;
     --f-alliance: #2a62b0; --f-horde: #b52f27; --f-both: #8a6415; --f-other: #6d4cb5;
+    --k-light: #b0860c; --k-void: #6a3fc4; --k-order: #2a6fc0; --k-disorder: #5f8f12; --k-life: #1f8a4c; --k-death: #4f7487;
     color-scheme: light;
   }
 }
@@ -73,6 +80,7 @@
   --r-family: #3d8c37; --r-romance: #c73e79; --r-mentor: #2c77cc; --r-ally: #7b869a;
   --r-rival: #c26810; --r-slew: #d02c2c; --r-corrupt: #7a48d0; --r-serves: #97772b;
     --f-alliance: #2a62b0; --f-horde: #b52f27; --f-both: #8a6415; --f-other: #6d4cb5;
+    --k-light: #b0860c; --k-void: #6a3fc4; --k-order: #2a6fc0; --k-disorder: #5f8f12; --k-life: #1f8a4c; --k-death: #4f7487;
   color-scheme: light;
 }
 
@@ -85,7 +93,26 @@ button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Header */
-.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); align-items: end; gap: 14px 24px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.top .tabs { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 760px) { .top { grid-template-columns: minmax(0, 1fr); } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.gsearch { position: relative; min-width: 0; }
+.gsearch input { width: 100%; font: inherit; font-size: 15px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px 9px 38px; }
+.gsearch input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.gicon { position: absolute; left: 13px; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.gres { position: absolute; right: 0; top: calc(100% + 6px); width: min(580px, calc(100vw - 32px)); max-height: 72vh; overflow: auto; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgb(0 0 0 / .45); z-index: 30; padding: 6px; }
+.ghead { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); padding: 10px 10px 4px; }
+.ghead span { font-weight: 400; }
+.ghit { display: grid; gap: 2px; width: 100%; text-align: left; border: 0; background: transparent; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.ghit:hover, .ghit.active { background: var(--surface); }
+.ghit .gl { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ghit .gl .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }
+.ghit .gs { font-size: 13px; color: var(--muted); }
+.ghit .gsn { font-size: 13.5px; line-height: 1.45; color: var(--fg); opacity: .85; }
+.ghit mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.gmore { font-size: 12.5px; color: var(--muted); padding: 2px 10px 6px; }
+.gempty { padding: 14px 12px; color: var(--muted); }
 .brand h1 { font-size: clamp(28px, 4vw, 42px); letter-spacing: .02em; line-height: 1.05; }
 .brand h1 span { color: var(--accent); }
 .brand p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
@@ -310,6 +337,48 @@ marker path { fill: currentColor; stroke: none; }
   .rmain .raside { position: static; }
 }
 
+/* Cosmology */
+#cosmosBody { padding-block: 14px 0; }
+.cos-intro { max-width: 72ch; }
+.cos-intro h2 { font-size: clamp(28px, 3.6vw, 40px); }
+.cos-intro p { margin: 10px 0 0; font-size: 16.5px; line-height: 1.65; }
+.cos-grid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 20px 32px; align-items: start; margin-top: 22px; }
+.cos-chart { margin: 0; position: sticky; top: env(safe-area-inset-top, 0px); }
+.cosmos { width: 100%; max-width: 560px; height: auto; display: block; }
+.cos-chart figcaption { margin-top: 8px; font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+.cpair { stroke: var(--line); stroke-width: 2; stroke-dasharray: 6 6; }
+.cring { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.celem { font-size: 12.5px; fill: var(--muted); text-anchor: middle; letter-spacing: .08em; text-transform: uppercase; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.creal { fill: var(--surface-2); stroke: var(--accent); stroke-width: 2; }
+.crealm { stroke-width: 1.5; }
+.crealm.dream { fill: color-mix(in srgb, var(--k-life) 16%, transparent); stroke: color-mix(in srgb, var(--k-life) 60%, transparent); }
+.crealm.shadow { fill: color-mix(in srgb, var(--k-death) 16%, transparent); stroke: color-mix(in srgb, var(--k-death) 60%, transparent); }
+.crl { font-family: var(--font-display); font-size: 19px; fill: var(--fg); text-anchor: middle; }
+.crs { font-size: 11.5px; fill: var(--muted); text-anchor: middle; }
+.crn { font-size: 11.5px; font-style: italic; fill: var(--fg); opacity: .8; text-anchor: middle; paint-order: stroke; stroke: var(--surface-2); stroke-width: 3px; }
+.cnode { cursor: pointer; }
+.cnode circle { fill: color-mix(in srgb, var(--k) 16%, var(--surface)); stroke: var(--k); stroke-width: 2.5; transition: fill .15s ease; }
+.cnode:hover circle, .cnode:focus-visible circle { fill: color-mix(in srgb, var(--k) 30%, var(--surface)); }
+.cnode.on circle { fill: color-mix(in srgb, var(--k) 38%, var(--surface)); stroke-width: 4.5; }
+.cnode:focus { outline: none; }
+.cnode .cn { font-family: var(--font-display); font-size: 21px; fill: var(--fg); text-anchor: middle; pointer-events: none; }
+.cnode .ca { font-size: 12.5px; fill: var(--muted); text-anchor: middle; text-transform: uppercase; letter-spacing: .1em; pointer-events: none; }
+.cforce .story p { margin: 10px 0 0; font-size: 16px; line-height: 1.65; }
+.cos-sections { margin-top: 28px; }
+@media (max-width: 1000px) {
+  .cos-grid { grid-template-columns: minmax(0, 1fr); }
+  .cos-chart { position: static; max-width: 560px; }
+}
+
+/* Biographies and factions */
+.bioview { padding-block: 14px 0; }
+.bio { --fc: var(--c); }
+.org { --fc: var(--c); }
+.rgroup.al-hero, .rgroup.al-grey, .rgroup.al-villain { --fc: var(--c); }
+.xrace { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.xrace .more-label { margin-right: 4px; }
+.raside .rhist .linkbtn { text-align: left; }
+
 /* Expandable event stories */
 .tl-tools { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 20px; }
 .tl-tools .scale-note { flex: 1 1 420px; min-width: 0; }
@@ -346,20 +415,23 @@ marker path { fill: currentColor; stroke: none; }
       <h1>Azeroth <span>Lore</span> Atlas</h1>
       <p>Who's who in Warcraft, how they're tied together, and ten thousand years of history, from the first Titans to Midnight.</p>
     </div>
+    <div class="gsearch" role="search">
+      <label for="gq" class="sr">Search the whole atlas</label>
+      <svg class="gicon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>
+      <input id="gq" type="search" placeholder="Search characters, events, races, stories&#x2026;" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="gres" aria-autocomplete="list">
+      <div class="gres" id="gres" role="listbox" aria-label="Search results" hidden></div>
+    </div>
     <div class="tabs" role="tablist" aria-label="Views">
       <button class="tab" role="tab" id="tab-web" aria-selected="true" aria-controls="view-web">Characters</button>
       <button class="tab" role="tab" id="tab-time" aria-selected="false" aria-controls="view-time">Timeline</button>
       <button class="tab" role="tab" id="tab-races" aria-selected="false" aria-controls="view-races">Races</button>
+      <button class="tab" role="tab" id="tab-orgs" aria-selected="false" aria-controls="view-orgs">Factions</button>
+      <button class="tab" role="tab" id="tab-cosmos" aria-selected="false" aria-controls="view-cosmos">Cosmology</button>
     </div>
   </header>
 
   <section id="view-web" role="tabpanel" aria-labelledby="tab-web">
     <div class="toolbar">
-      <div class="tgroup search">
-        <label class="tlabel" for="q">Find</label>
-        <input id="q" type="search" placeholder="Try Sylvanas, Illidan&#x2026;" list="names" autocomplete="off">
-        <datalist id="names"></datalist>
-      </div>
       <div class="tgroup" id="alignChips"><span class="tlabel">Side</span></div>
       <div class="tgroup" id="relChips"><span class="tlabel">Ties</span></div>
       <button class="btn" id="resetBtn" type="button">Reset view</button>
@@ -376,6 +448,7 @@ marker path { fill: currentColor; stroke: none; }
       </div>
       <aside class="panel" id="panel" aria-live="polite"></aside>
     </div>
+    <section class="bioview" id="bioView" aria-live="polite" hidden></section>
   </section>
 
   <section id="view-time" role="tabpanel" aria-labelledby="tab-time" hidden>
@@ -383,14 +456,25 @@ marker path { fill: currentColor; stroke: none; }
     <div class="tl-tools"><p class="scale-note">Not drawn to scale: the first eras cover millions of years, while the last covers about three decades. Years count from the opening of the Dark Portal (Year 0). Click any name to find that character on the map. &#x201c;Read more&#x201d; links open the matching page on the Warcraft Wiki, a fan-run encyclopedia. Essays come from Blizzard Watch&#x2019;s Know Your Lore column. Their year is shown, since older ones predate later story reveals.</p><button type="button" class="btn" id="toggleAll" aria-pressed="false">Expand all stories</button></div>
     <div id="eraList"></div>
   </section>
+  <section id="view-orgs" role="tabpanel" aria-labelledby="tab-orgs" hidden>
+    <p class="scale-note">Orders, armies and cults that cut across races and factions. Pick one to read its story, see who led it and which races fill its ranks.</p>
+    <div class="races">
+      <nav class="racenav" id="orgNav" aria-label="Factions"></nav>
+      <label class="racepick" for="orgSelect"><span class="tlabel">Faction</span><select id="orgSelect"></select></label>
+      <article class="racebody" id="orgBody" aria-live="polite"></article>
+    </div>
+  </section>
+  <section id="view-cosmos" role="tabpanel" aria-labelledby="tab-cosmos" hidden>
+    <div id="cosmosBody"><p class="scale-note">The cosmology is being written.</p></div>
+  </section>
   <section id="view-races" role="tabpanel" aria-labelledby="tab-races" hidden>
     <p class="scale-note">The playable races of each faction, plus the other peoples who shape the story. Allied races joined later and are tagged. The family tree shows how races branched from one another. Click any race to open its profile and full history.</p>
     <div class="rmodes" role="group" aria-label="Races view">
-      <button type="button" class="btn" data-rmode="tree" aria-pressed="true">Family tree</button>
-      <button type="button" class="btn" data-rmode="profiles" aria-pressed="false">Race profiles</button>
+      <button type="button" class="btn" data-rmode="profiles" aria-pressed="true">Race profiles</button>
+      <button type="button" class="btn" data-rmode="tree" aria-pressed="false">Family tree</button>
     </div>
-    <div id="raceTree"></div>
-    <div class="races" id="raceProfiles" hidden>
+    <div id="raceTree" hidden></div>
+    <div class="races" id="raceProfiles">
       <nav class="racenav" id="raceNav" aria-label="Races"></nav>
       <label class="racepick" for="raceSelect"><span class="tlabel">Race</span><select id="raceSelect"></select></label>
       <article class="racebody" id="raceBody" aria-live="polite"></article>
@@ -408,6 +492,14 @@ marker path { fill: currentColor; stroke: none; }
 <script charset="utf-8" src="data-races-1.js"></script>
 <script charset="utf-8" src="data-races-2.js"></script>
 <script charset="utf-8" src="data-family.js"></script>
+<script charset="utf-8" src="data-orgs.js"></script>
+<script charset="utf-8" src="data-cosmos.js"></script>
+<script charset="utf-8" src="bios/bios-alliance.js"></script>
+<script charset="utf-8" src="bios/bios-horde.js"></script>
+<script charset="utf-8" src="bios/bios-elves.js"></script>
+<script charset="utf-8" src="bios/bios-powers.js"></script>
+<script charset="utf-8" src="bios/bios-void.js"></script>
+<script charset="utf-8" src="bios/bios-dragons.js"></script>
 <script charset="utf-8" src="events/events-cosmos.js"></script>
 <script charset="utf-8" src="events/events-ancients.js"></script>
 <script charset="utf-8" src="events/events-kingdoms.js"></script>
